@@ -1,16 +1,19 @@
 """
-Normalisation du texte OCR (docs/07) — second appel LLM léger, avec un vrai prompt système
-cette fois (contrairement à `ocr.process`, qui ne fait que transcrire, sans instruction
+Normalisation du texte OCR (docs/07) — second appel LLM, avec un vrai prompt système cette fois
+(contrairement à `ocr.process` — Mistral OCR — qui ne fait que transcrire, sans instruction
 possible). Reformate le texte OCR brut en structure fixe, plus fiable à parser pour
 l'extracteur texte de ReceiptAI (lui-même un LLM — un texte source propre et structuré en
 entrée donne une extraction bien plus fiable en sortie côté ReceiptAI).
+
+Fournisseur choisi par l'utilisateur : **OpenAI GPT-4o**, distinct de l'OCR (Mistral) — clé
+séparée (`OPENAI_API_KEY`), voir `.env.example`.
 """
 
 import logging
 
-from mistralai.client import Mistral
+from openai import OpenAI
 
-from app.config import MISTRAL_API_KEY
+from app.config import OPENAI_API_KEY
 
 logger = logging.getLogger("receiptai-glass-bridge")
 
@@ -33,19 +36,19 @@ class NormalizeError(Exception):
 
 
 def normalize(raw_ocr_text: str) -> str:
-    """Reformate [raw_ocr_text] selon SYSTEM_PROMPT. Lève NormalizeError si indisponible."""
-    if not MISTRAL_API_KEY:
-        raise NormalizeError("MISTRAL_API_KEY absente")
+    """Reformate [raw_ocr_text] selon SYSTEM_PROMPT (GPT-4o). Lève NormalizeError si indisponible."""
+    if not OPENAI_API_KEY:
+        raise NormalizeError("OPENAI_API_KEY absente")
 
-    with Mistral(api_key=MISTRAL_API_KEY) as client:
-        response = client.chat.complete(
-            model="mistral-small-latest",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": raw_ocr_text},
-            ],
-            temperature=0.0,
-        )
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": raw_ocr_text},
+        ],
+        temperature=0.0,
+    )
 
     content = (response.choices[0].message.content or "").strip()
     if not content:

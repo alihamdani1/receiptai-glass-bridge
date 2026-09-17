@@ -4,3 +4,4 @@ python-multipart>=0.0.12
 python-dotenv>=1.0
 mistralai>=1.2
 sendgrid>=6.11
+openai>=1.50

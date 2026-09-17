@@ -24,6 +24,9 @@ UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(BACKEND_DIR / "data" / "uploads"))
 # --- Étape 3 : OCR (Mistral OCR) ---
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 
+# --- Étape 3bis : normalisation du texte OCR (OpenAI GPT-4o — distinct de l'OCR) ---
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
 # --- Étape 4-5 : e-mail (SendGrid) ---
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "")  # expéditeur vérifié côté SendGrid
