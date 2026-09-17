@@ -2,14 +2,18 @@
 ReceiptAI Glass — pont OCR démo rapide (docs/07, chemin indépendant de l'Étape 6 parkée).
 
     scan lunettes -> POST /scan -> enregistrement local -> OCR (Mistral OCR)
+                                                          -> normalisation (LLM, structure fixe)
                                                           -> e-mail (SendGrid) -> ReceiptAI
 
 ReceiptAI n'ingère aujourd'hui que du texte par e-mail (docs/02 §C.0) — ce backend imite ce
-qu'un humain enverrait, à partir du texte extrait du bordereau scanné.
+qu'un humain enverrait, à partir du texte extrait du bordereau scanné. La normalisation
+reformate le texte OCR brut (souvent désordonné) en structure fixe avant l'envoi — un texte
+source propre donne une extraction bien plus fiable côté ReceiptAI (lui-même un LLM).
 
-OCR et e-mail sont **best-effort** : si l'une des deux variables d'environnement requises
-manque, ou si l'appel échoue, `/scan` répond quand même `200` (le scan est bien reçu) avec le
-détail de ce qui a marché ou pas dans la réponse — utile pour itérer étape par étape.
+OCR, normalisation et e-mail sont **best-effort** : si une variable d'environnement requise
+manque, ou si un appel échoue, `/scan` répond quand même `200` (le scan est bien reçu) avec le
+détail de ce qui a marché ou pas dans la réponse — utile pour itérer étape par étape. Si la
+normalisation échoue, l'e-mail part quand même avec le texte OCR brut (repli, jamais bloquant).
 
 Lancer en local :
     uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -27,6 +31,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import UPLOAD_DIR
 from app.email_sender import EmailError, send_scan_email
+from app.normalize import NormalizeError, normalize
 from app.ocr import OcrError, extract_text
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -66,9 +71,20 @@ async def receive_scan(image: UploadFile = File(...)) -> JSONResponse:
         result["ocr"] = {"status": "error", "detail": str(e)}
         logger.warning("scan %s: OCR échoué: %s", scan_id, e)
 
+    email_text = ocr_text
     if ocr_text:
         try:
-            send_scan_email(ocr_text)
+            structured = normalize(ocr_text)
+            email_text = f"{structured}\n\n---\nTexte brut OCR (référence) :\n{ocr_text}"
+            result["normalize"] = {"status": "ok"}
+            logger.info("scan %s: normalisation ok", scan_id)
+        except NormalizeError as e:
+            result["normalize"] = {"status": "error", "detail": str(e)}
+            logger.warning("scan %s: normalisation échouée, envoi du texte brut: %s", scan_id, e)
+
+    if email_text:
+        try:
+            send_scan_email(email_text)
             result["email"] = {"status": "sent"}
             logger.info("scan %s: e-mail envoyé", scan_id)
         except EmailError as e:
