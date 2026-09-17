@@ -18,17 +18,29 @@ except ImportError:
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
+
+def _env(name: str, default: str = "") -> str:
+    """Comme `os.getenv`, mais `.strip()` la valeur — un espace/retour à la ligne collé par
+    inadvertance dans un champ de variable d'environnement (Render, `.env`...) rend sinon une
+    clé API "invalide" alors que la valeur copiée était correcte."""
+    return os.getenv(name, default).strip()
+
+
 # --- Étape 1-2 : réception du scan ---
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(BACKEND_DIR / "data" / "uploads")))
+UPLOAD_DIR = Path(_env("UPLOAD_DIR", str(BACKEND_DIR / "data" / "uploads")))
 
 # --- Étape 3 : OCR (Mistral OCR) ---
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
+MISTRAL_API_KEY = _env("MISTRAL_API_KEY")
 
-# --- Étape 3bis : normalisation du texte OCR (OpenAI GPT-4o — distinct de l'OCR) ---
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+# --- Étape 3bis : normalisation du texte OCR (GPT-4o via Azure OpenAI — ressource
+# d'entreprise existante, pas api.openai.com — distinct de l'OCR) ---
+OPENAI_API_KEY = _env("OPENAI_API_KEY")
+AZURE_OPENAI_ENDPOINT = _env("AZURE_OPENAI_ENDPOINT", "https://chatbot-procurement.openai.azure.com")
+AZURE_OPENAI_API_VERSION = _env("AZURE_OPENAI_API_VERSION", "2025-01-01-preview")
+AZURE_OPENAI_DEPLOYMENT = _env("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
 
 # --- Étape 4-5 : e-mail (SendGrid) ---
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
-SENDER_EMAIL = os.getenv("SENDER_EMAIL", "")  # expéditeur vérifié côté SendGrid
-DEBUG_BCC_EMAIL = os.getenv("DEBUG_BCC_EMAIL", "")  # copie pour vérifier le format en debug
-RECEIPTAI_EMAIL = os.getenv("RECEIPTAI_EMAIL", "")  # boîte ReceiptAI (test pour l'instant)
+SENDGRID_API_KEY = _env("SENDGRID_API_KEY")
+SENDER_EMAIL = _env("SENDER_EMAIL")  # expéditeur vérifié côté SendGrid
+DEBUG_BCC_EMAIL = _env("DEBUG_BCC_EMAIL")  # copie pour vérifier le format en debug
+RECEIPTAI_EMAIL = _env("RECEIPTAI_EMAIL")  # boîte ReceiptAI (test pour l'instant)

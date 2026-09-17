@@ -5,15 +5,21 @@ possible). Reformate le texte OCR brut en structure fixe, plus fiable à parser 
 l'extracteur texte de ReceiptAI (lui-même un LLM — un texte source propre et structuré en
 entrée donne une extraction bien plus fiable en sortie côté ReceiptAI).
 
-Fournisseur choisi par l'utilisateur : **OpenAI GPT-4o**, distinct de l'OCR (Mistral) — clé
-séparée (`OPENAI_API_KEY`), voir `.env.example`.
+Fournisseur choisi par l'utilisateur : **GPT-4o via Azure OpenAI** (ressource d'entreprise
+existante, `chatbot-procurement.openai.azure.com` — pas api.openai.com), distinct de l'OCR
+(Mistral) — clé séparée (`OPENAI_API_KEY`), voir `.env.example`.
 """
 
 import logging
 
-from openai import OpenAI
+from openai import AzureOpenAI
 
-from app.config import OPENAI_API_KEY
+from app.config import (
+    AZURE_OPENAI_API_VERSION,
+    AZURE_OPENAI_DEPLOYMENT,
+    AZURE_OPENAI_ENDPOINT,
+    OPENAI_API_KEY,
+)
 
 logger = logging.getLogger("receiptai-glass-bridge")
 
@@ -41,9 +47,13 @@ def normalize(raw_ocr_text: str) -> str:
         raise NormalizeError("OPENAI_API_KEY absente")
 
     try:
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        client = AzureOpenAI(
+            api_key=OPENAI_API_KEY,
+            api_version=AZURE_OPENAI_API_VERSION,
+            azure_endpoint=AZURE_OPENAI_ENDPOINT,
+        )
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=AZURE_OPENAI_DEPLOYMENT,  # nom du déploiement Azure, pas un id de modèle brut
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": raw_ocr_text},
