@@ -24,21 +24,26 @@ def extract_text(image_bytes: bytes, filename: str = "scan.jpg") -> str:
     if not MISTRAL_API_KEY:
         raise OcrError("MISTRAL_API_KEY absente (variable d'environnement Render)")
 
-    with Mistral(api_key=MISTRAL_API_KEY) as client:
-        uploaded = client.files.upload(
-            file={"file_name": filename, "content": image_bytes},
-            purpose="ocr",
-        )
-        try:
-            response = client.ocr.process(
-                document={"type": "file", "file_id": uploaded.id},
-                model="mistral-ocr-latest",
+    try:
+        with Mistral(api_key=MISTRAL_API_KEY) as client:
+            uploaded = client.files.upload(
+                file={"file_name": filename, "content": image_bytes},
+                purpose="ocr",
             )
-        finally:
             try:
-                client.files.delete(file_id=uploaded.id)  # ne garde pas le fichier côté Mistral
-            except Exception:
-                logger.warning("suppression fichier Mistral échouée (non bloquant)", exc_info=True)
+                response = client.ocr.process(
+                    document={"type": "file", "file_id": uploaded.id},
+                    model="mistral-ocr-latest",
+                )
+            finally:
+                try:
+                    client.files.delete(file_id=uploaded.id)  # ne garde pas le fichier côté Mistral
+                except Exception:
+                    logger.warning("suppression fichier Mistral échouée (non bloquant)", exc_info=True)
+    except OcrError:
+        raise
+    except Exception as e:
+        raise OcrError(str(e)) from e
 
     pages = getattr(response, "pages", None) or []
     text = "\n\n".join((p.markdown or "").strip() for p in pages).strip()

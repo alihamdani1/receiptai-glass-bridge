@@ -40,15 +40,18 @@ def normalize(raw_ocr_text: str) -> str:
     if not OPENAI_API_KEY:
         raise NormalizeError("OPENAI_API_KEY absente")
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": raw_ocr_text},
-        ],
-        temperature=0.0,
-    )
+    try:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": raw_ocr_text},
+            ],
+            temperature=0.0,
+        )
+    except Exception as e:
+        raise NormalizeError(str(e)) from e
 
     content = (response.choices[0].message.content or "").strip()
     if not content:
